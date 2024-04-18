@@ -716,7 +716,7 @@ eServiceHisilicon::eServiceHisilicon(eServiceReference ref):
 	m_seekable = 0;
 	m_bufferpercentage = 0;
 
-	m_useragent = "Enigma2 HbbTV/1.1.1 (+PVR+RTSP+DL;OpenPLi;;;)";
+	m_useragent = "HbbTV/1.1.1 (+PVR+RTSP+DL; Sonic; TV44; 1.32.455; 2.002) Bee/3.5";
 	m_extra_headers = "";
 	m_download_buffer_path = "";
 	m_prev_decoder_time = -1;
