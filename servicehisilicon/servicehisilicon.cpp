@@ -4,6 +4,7 @@
 #include <lib/base/init.h>
 #include <lib/base/nconfig.h>
 #include <lib/base/object.h>
+#include <lib/dvb/db.h>
 #include <lib/dvb/epgcache.h>
 #include <lib/dvb/decoder.h>
 #include <lib/components/file_eraser.h>
@@ -18,6 +19,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <string>
+#include <lib/base/estring.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 
@@ -220,6 +222,12 @@ RESULT eStaticServiceHisiliconInfo::getName(const eServiceReference &ref, std::s
 		else
 			name = ref.path;
 	}
+
+	std::string res_name = "";
+	std::string res_provider = "";
+	eServiceReference::parseNameAndProviderFromName(name, res_name, res_provider);
+	name = res_name;
+
 	return 0;
 }
 
@@ -608,6 +616,7 @@ void eServiceHisilicon::netlink_event(int)
 							m_buffering = true;
 							m_event((iPlayableService*)this, evBuffering);
 						}
+						break;
 					case 2: /* enough */
 					case 3: /* full */
 						if (m_buffering)
@@ -721,6 +730,18 @@ eServiceHisilicon::eServiceHisilicon(eServiceReference ref):
 	m_prev_decoder_time = -1;
 	m_decoder_time_valid_state = 0;
 	m_errorInfo.missing_codec = "";
+
+	std::string sref = ref.toString();
+	if (!sref.empty()) {
+		std::vector<eIPTVDBItem> &iptv_services = eDVBDB::getInstance()->iptv_services;
+		for(std::vector<eIPTVDBItem>::iterator it = iptv_services.begin(); it != iptv_services.end(); ++it) {
+			if (sref.find(it->s_ref) != std::string::npos) {
+				m_currentAudioStream = it->ampeg_pid;
+				m_currentSubtitleStream = it->subtitle_pid;
+				m_cachedSubtitleStream = m_currentSubtitleStream;
+			}
+		}
+	}
 
 	CONNECT(m_nownext_timer->timeout, eServiceHisilicon::updateEpgCacheNowNext);
 	m_aspect = m_width = m_height = m_framerate = m_progressive = m_gamma = -1;
@@ -844,6 +865,29 @@ eServiceHisilicon::~eServiceHisilicon()
 	free(fileinfo.pastProgramInfo);
 }
 
+void eServiceHisilicon::setCacheEntry(bool isAudio, int pid)
+{
+	bool hasFoundItem = false;
+	std::vector<eIPTVDBItem> &iptv_services = eDVBDB::getInstance()->iptv_services;
+	for(std::vector<eIPTVDBItem>::iterator it = iptv_services.begin(); it != iptv_services.end(); ++it) {
+		if (m_ref.toString().find(it->s_ref) != std::string::npos) {
+			hasFoundItem = true;
+			if (isAudio) {
+				it->ampeg_pid = pid;
+			}
+			else
+			{
+				it->subtitle_pid = pid;
+			}
+			break;
+		}
+	}
+	if (!hasFoundItem) {
+		eIPTVDBItem item(m_ref.toReferenceString(), isAudio ? pid : -1, -1, -1, -1, -1, -1, -1, isAudio ? -1 : pid, -1);
+		iptv_services.push_back(item);
+	}
+}
+
 void eServiceHisilicon::updateEpgCacheNowNext()
 {
 	bool update = false;
@@ -903,6 +947,7 @@ RESULT eServiceHisilicon::start()
 
 	if (m_video_fd >= 0)
 	{
+		eDebug("[eServiceHisilicon][start] video");
 		::ioctl(m_video_fd, VIDEO_FAST_FORWARD, 0);
 		::ioctl(m_video_fd, VIDEO_SLOWMOTION, 0);
 		::ioctl(m_video_fd, VIDEO_PLAY);
@@ -910,6 +955,7 @@ RESULT eServiceHisilicon::start()
 	}
 	if (m_audio_fd >= 0)
 	{
+		eDebug("[eServiceHisilicon][start] audeo");
 		::ioctl(m_audio_fd, AUDIO_PLAY);
 		::ioctl(m_audio_fd, AUDIO_CONTINUE);
 	}
@@ -1118,6 +1164,8 @@ RESULT eServiceHisilicon::getName(std::string &name)
 	}
 	else
 		name = title;
+
+	m_prov = m_ref.prov;
 	return 0;
 }
 
@@ -1666,11 +1714,21 @@ std::string eServiceHisilicon::getInfoString(int w)
 	switch (w)
 	{
 	case sProvider:
+	{
 		if (pstProgram)
 		{
 			return pstProgram->aszServiceProvider;
 		}
+		else
+		{
+			if (m_prov.empty()) {
+				return "IPTV";
+			} else {
+				return m_prov;
+			}
+		}
 		break;
+	}
 	case sServiceref:
 	{
 		eServiceReference ref(m_ref);
@@ -1870,6 +1928,7 @@ int eServiceHisilicon::selectAudioStream(int i)
 		struct video_command cmd = {0};
 		cmd.cmd = 105; /* set audio streamid */
 		cmd.raw.data[0] = i;
+		setCacheEntry(true, i);
 		::ioctl(m_video_fd, VIDEO_COMMAND, &cmd);
 	}
 	return 0;
@@ -1925,6 +1984,7 @@ RESULT eServiceHisilicon::enableSubtitles(iSubtitleUser *user, struct SubtitleTr
 			struct video_command cmd = {0};
 			cmd.cmd = 106; /* set subtitle streamid */
 			cmd.raw.data[0] = track.pid;
+			setCacheEntry(false, track.pid);
 			::ioctl(m_video_fd, VIDEO_COMMAND, &cmd);
 		}
 
@@ -1944,6 +2004,7 @@ RESULT eServiceHisilicon::disableSubtitles()
 	eDebug("[eServiceHisilicon] disableSubtitles");
 	m_currentSubtitleStream = -1;
 	m_cachedSubtitleStream = m_currentSubtitleStream;
+	setCacheEntry(false, -1);
 	/* TODO: can we actually disable the subtitle output? */
 	m_prev_decoder_time = -1;
 	m_decoder_time_valid_state = 0;

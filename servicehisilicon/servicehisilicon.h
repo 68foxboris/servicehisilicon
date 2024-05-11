@@ -90,6 +90,8 @@ class eServiceHisilicon: public iPlayableService, public iPauseableService,
 public:
 	virtual ~eServiceHisilicon();
 
+	void setCacheEntry(bool isAudio, int pid);
+
 		// iPlayableService
 	RESULT connectEvent(const sigc::slot<void(iPlayableService*,int)> &event, ePtr<eConnection> &connection);
 	RESULT start();
@@ -113,6 +115,7 @@ public:
 	RESULT timeshift(ePtr<iTimeshiftService> &ptr) { ptr = 0; return -1; }
 	RESULT tap(ePtr<iTapService> &ptr) { ptr = nullptr; return -1; };
 //	RESULT cueSheet(ePtr<iCueSheet> &ptr) { ptr = 0; return -1; }
+	void setQpipMode(bool, bool) {}
 
 		// iCueSheet
 	PyObject *getCutList();
@@ -122,8 +125,6 @@ public:
 	RESULT rdsDecoder(ePtr<iRdsDecoder> &ptr) { ptr = 0; return -1; }
 	RESULT keys(ePtr<iServiceKeys> &ptr) { ptr = 0; return -1; }
 	RESULT stream(ePtr<iStreamableService> &ptr) { ptr = 0; return -1; }
-
-	void setQpipMode(bool value, bool audio) { }
 
 		// iPausableService
 	RESULT pause();
@@ -245,6 +246,7 @@ private:
 	iSubtitleUser *m_subtitle_widget;
 	friend class eServiceFactoryHisilicon;
 	eServiceReference m_ref;
+	std::string m_prov;
 	bool m_paused;
 	bool m_buffering;
 	/* cuesheet load check */
