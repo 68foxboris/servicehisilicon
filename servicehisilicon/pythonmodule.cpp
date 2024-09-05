@@ -1,5 +1,7 @@
 #include "servicehisilicon.h"
 
+#include <Python.h>
+
 static PyMethodDef servicehisiliconMethods[] =
 {
 	{NULL,NULL,0,NULL}
