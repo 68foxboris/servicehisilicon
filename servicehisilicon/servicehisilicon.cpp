@@ -220,12 +220,6 @@ RESULT eStaticServiceHisiliconInfo::getName(const eServiceReference &ref, std::s
 		else
 			name = ref.path;
 	}
-
-	std::string res_name = "";
-	std::string res_provider = "";
-	eServiceReference::parseNameAndProviderFromName(name, res_name, res_provider);
-	name = res_name;
-
 	return 0;
 }
 
@@ -1125,8 +1119,6 @@ RESULT eServiceHisilicon::getName(std::string &name)
 	}
 	else
 		name = title;
-
-	m_prov = m_ref.prov;
 	return 0;
 }
 
@@ -1675,25 +1667,9 @@ std::string eServiceHisilicon::getInfoString(int w)
 	switch (w)
 	{
 	case sProvider:
-		std::string prov = m_ref.getProvider();
 		if (pstProgram)
 		{
-			if (prov.empty()) {
-				if (strlen(pstProgram->aszServiceProvider) == 0)
-					return "IPTV";
-				return pstProgram->aszServiceProvider;
-			} else {
-				return prov;
-			}
-
-		}
-		else
-		{
-			if (prov.empty()) {
-				return "IPTV";
-			} else {
-				return prov;
-			}
+			return pstProgram->aszServiceProvider;
 		}
 		break;
 	case sServiceref:
