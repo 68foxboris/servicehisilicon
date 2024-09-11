@@ -1,4 +1,4 @@
-AC_INIT([servicehisilicon], [0.1], [])
+AC_INIT([servicehisilicon], [0.2], [])
 AM_INIT_AUTOMAKE([subdir-objects foreign dist-bzip2 no-define tar-pax])
 AC_CONFIG_MACRO_DIR([m4])
 LT_INIT
@@ -8,8 +8,8 @@ AC_PROG_CXX
 AM_PATH_PYTHON
 AX_PYTHON_DEVEL
 AC_LANG(C++)
-
-PKG_CHECK_MODULES(ENIGMA2, enigma2)
+AX_CXX_COMPILE_STDCXX([17], [ext], [mandatory])
+PKG_CHECK_MODULES(ENIGMA2(ENIGMA2, enigma2)
 
 AC_DEFINE([DEBUG])
 
