@@ -113,8 +113,9 @@ public:
 	RESULT frontendInfo(ePtr<iFrontendInformation> &ptr) { ptr = 0; return -1; }
 	RESULT subServices(ePtr<iSubserviceList> &ptr) { ptr = 0; return -1; }
 	RESULT timeshift(ePtr<iTimeshiftService> &ptr) { ptr = 0; return -1; }
-	RESULT tap(ePtr<iTapService> &ptr) { ptr = nullptr; return -1; };
+	RESULT tap(ePtr<iTapService> &ptr) { ptr = nullptr; return -1; }
 //	RESULT cueSheet(ePtr<iCueSheet> &ptr) { ptr = 0; return -1; }
+	void setQpipMode(bool, bool) {}
 
 		// iCueSheet
 	PyObject *getCutList();
@@ -124,8 +125,6 @@ public:
 	RESULT rdsDecoder(ePtr<iRdsDecoder> &ptr) { ptr = 0; return -1; }
 	RESULT keys(ePtr<iServiceKeys> &ptr) { ptr = 0; return -1; }
 	RESULT stream(ePtr<iStreamableService> &ptr) { ptr = 0; return -1; }
-
-	void setQpipMode(bool value, bool audio) { }
 
 		// iPausableService
 	RESULT pause();
