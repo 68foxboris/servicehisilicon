@@ -92,6 +92,8 @@ class eServiceHisilicon: public iPlayableService, public iPauseableService,
 public:
 	virtual ~eServiceHisilicon();
 
+	void setCacheEntry(bool isAudio, int pid);
+
 		// iPlayableService
 	RESULT connectEvent(const sigc::slot<void(iPlayableService*,int)> &event, ePtr<eConnection> &connection);
 	RESULT start();
@@ -246,6 +248,7 @@ private:
 	iSubtitleUser *m_subtitle_widget;
 	friend class eServiceFactoryHisilicon;
 	eServiceReference m_ref;
+	std::string m_prov;
 	bool m_paused;
 	bool m_buffering;
 	/* cuesheet load check */
