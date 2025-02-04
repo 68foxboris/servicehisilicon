@@ -4,7 +4,6 @@
 #include <lib/base/init.h>
 #include <lib/base/nconfig.h>
 #include <lib/base/object.h>
-#include <lib/dvb/dvb.h>
 #include <lib/dvb/db.h>
 #include <lib/dvb/epgcache.h>
 #include <lib/dvb/decoder.h>
@@ -180,15 +179,6 @@ RESULT eHisiliconServiceOfflineOperations::getListOfFilenames(std::list<std::str
 {
 	res.clear();
 	res.push_back(m_ref.path);
-	res.push_back(m_ref.path + ".meta");
-	res.push_back(m_ref.path + ".cuts");
-	std::string filename = m_ref.path;
-	size_t pos;
-	if ((pos = filename.rfind('.')) != std::string::npos)
-	{
-		filename.erase(pos + 1);
-		res.push_back(filename + ".eit");
-	}
 	return 0;
 }
 
@@ -737,7 +727,7 @@ eServiceHisilicon::eServiceHisilicon(eServiceReference ref):
 	m_seekable = 0;
 	m_bufferpercentage = 0;
 
-	m_useragent = "Enigma2 HbbTV/1.1.1 (+PVR+RTSP+DL;OpenPLi;;;)";
+	m_useragent = "HbbTV/1.1.1 (+PVR+RTSP+DL; Sonic; TV44; 1.32.455; 2.002) Bee/3.5";
 	m_extra_headers = "";
 	m_download_buffer_path = "";
 	m_prev_decoder_time = -1;
@@ -745,24 +735,17 @@ eServiceHisilicon::eServiceHisilicon(eServiceReference ref):
 	m_errorInfo.missing_codec = "";
 
 	std::string sref = ref.toString();
-	eDebug("[eServiceHisilicon] Init start %s", ref.toString().c_str());
-	size_t pos = m_ref.path.find('media');
-	size_t pos2 = m_ref.path.find('mkv');
-	if (pos == std::string::npos && pos2 == std::string::npos)
+	if (!sref.empty())
 	{
-		if (!sref.empty())
+		std::vector<eIPTVDBItem> &iptv_services = eDVBDB::getInstance()->iptv_services;
+		for(std::vector<eIPTVDBItem>::iterator it = iptv_services.begin(); it != iptv_services.end(); ++it)
 		{
-			eDebug("[eServiceHisilicon] Init start !sref.empty()");
-			std::vector<eIPTVDBItem> &iptv_services = eDVBDB::getInstance()->iptv_services;
-			for(std::vector<eIPTVDBItem>::iterator it = iptv_services.begin(); it != iptv_services.end(); ++it)
+			if (sref.find(it->s_ref) != std::string::npos)
 			{
-				if (sref.find(it->s_ref) != std::string::npos)
-				{
-					m_currentAudioStream = it->ampeg_pid;
-					m_currentSubtitleStream = it->subtitle_pid;
-					m_cachedSubtitleStream = m_currentSubtitleStream;
-					eDebug("[eServiceHisilicon] Init start iptv_service use sref pid's");
-				}
+				m_currentAudioStream = it->ampeg_pid;
+				m_currentSubtitleStream = it->subtitle_pid;
+				m_cachedSubtitleStream = m_currentSubtitleStream;
+				break;
 			}
 		}
 	}
@@ -778,7 +761,7 @@ eServiceHisilicon::eServiceHisilicon(eServiceReference ref):
 
 	const char *filename;
 	std::string filename_str;
-	pos = m_ref.path.find('#');
+	size_t pos = m_ref.path.find('#');
 	if (pos != std::string::npos && (m_ref.path.compare(0, 4, "http") == 0 || m_ref.path.compare(0, 4, "rtsp") == 0))
 	{
 		filename_str = m_ref.path.substr(0, pos);
@@ -897,10 +880,13 @@ void eServiceHisilicon::setCacheEntry(bool isAudio, int pid)
 {
 	bool hasFoundItem = false;
 	std::vector<eIPTVDBItem> &iptv_services = eDVBDB::getInstance()->iptv_services;
-	for(std::vector<eIPTVDBItem>::iterator it = iptv_services.begin(); it != iptv_services.end(); ++it) {
-		if (m_ref.toString().find(it->s_ref) != std::string::npos) {
+	for(std::vector<eIPTVDBItem>::iterator it = iptv_services.begin(); it != iptv_services.end(); ++it)
+	{
+		if (m_ref.toString().find(it->s_ref) != std::string::npos)
+		{
 			hasFoundItem = true;
-			if (isAudio) {
+			if (isAudio)
+			{
 				it->ampeg_pid = pid;
 			}
 			else
@@ -910,8 +896,13 @@ void eServiceHisilicon::setCacheEntry(bool isAudio, int pid)
 			break;
 		}
 	}
-	if (!hasFoundItem) {
-		eIPTVDBItem item(m_ref.toReferenceString(), isAudio ? pid : -1, -1, -1, -1, -1, -1, -1, isAudio ? -1 : pid, -1);
+	if (!hasFoundItem)
+	{
+		std::vector<std::string> ref_split = split(m_ref.toString(), ":");
+		std::vector<std::string> ref_split_r(ref_split.begin(), ref_split.begin() + 10);
+		std::string ref_s;
+		join_str(ref_split_r, ':', ref_s);
+		eIPTVDBItem item(ref_s, isAudio ? pid : -1, -1, -1, -1, -1, -1, -1, isAudio ? -1 : pid, -1);
 		iptv_services.push_back(item);
 	}
 }
@@ -975,6 +966,7 @@ RESULT eServiceHisilicon::start()
 
 	if (m_video_fd >= 0)
 	{
+		eDebug("[eServiceHisilicon][start] video");
 		::ioctl(m_video_fd, VIDEO_FAST_FORWARD, 0);
 		::ioctl(m_video_fd, VIDEO_SLOWMOTION, 0);
 		::ioctl(m_video_fd, VIDEO_PLAY);
@@ -982,6 +974,7 @@ RESULT eServiceHisilicon::start()
 	}
 	if (m_audio_fd >= 0)
 	{
+		eDebug("[eServiceHisilicon][start] audio");
 		::ioctl(m_audio_fd, AUDIO_PLAY);
 		::ioctl(m_audio_fd, AUDIO_CONTINUE);
 	}
@@ -2007,7 +2000,8 @@ eAutoInitPtr<eServiceFactoryHisilicon> init_eServiceFactoryHisilicon(eAutoInitNu
 
 RESULT eServiceHisilicon::enableSubtitles(iSubtitleUser *user, struct SubtitleTrack &track)
 {
-	if (m_currentSubtitleStream != track.pid || m_autoturnon)
+	bool autoturnon = eConfigManager::getConfigBoolValue("config.subtitles.pango_autoturnon", true);
+	if (m_currentSubtitleStream != track.pid || autoturnon)
 	{
 		m_prev_decoder_time = -1;
 		m_decoder_time_valid_state = 0;
@@ -2048,13 +2042,12 @@ RESULT eServiceHisilicon::disableSubtitles()
 
 RESULT eServiceHisilicon::getCachedSubtitle(struct SubtitleTrack &track)
 {
+
+	bool autoturnon = eConfigManager::getConfigBoolValue("config.subtitles.pango_autoturnon", true);
 	int m_subtitleStreams_size = (int)m_subtitleStreams.size();
-	if (!m_autoturnon)
-	{
-		eDebug("[eServiceHiSilicon] autorun subtitles not set");
+	if (!autoturnon)
 		return -1;
-	}
-	eDebug("[eServiceHiSilicon] autorun subtitles set");
+
 	if (m_cachedSubtitleStream == -2 && m_subtitleStreams_size)
 	{
 		m_cachedSubtitleStream = 0;
